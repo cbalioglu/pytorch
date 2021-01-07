@@ -5,7 +5,10 @@
 namespace torch {
 namespace jit {
 
-IValue toIValue(py::handle obj, const TypePtr& type, c10::optional<int32_t> N) {
+inline IValue toIValue(
+    py::handle obj,
+    const TypePtr& type,
+    c10::optional<int32_t> N) {
   switch (type->kind()) {
     case TypeKind::TensorType: {
       auto var = py::cast<autograd::Variable>(obj);
@@ -21,6 +24,12 @@ IValue toIValue(py::handle obj, const TypePtr& type, c10::optional<int32_t> N) {
     }
     case TypeKind::FloatType:
       return py::cast<double>(obj);
+    case TypeKind::ComplexDoubleType:
+      {
+        Py_complex c_obj = PyComplex_AsCComplex(obj.ptr());
+        auto complex_obj = ivalue::ComplexHolder(c10::complex<double>(c_obj.real, c_obj.imag));
+        return c10::make_intrusive<ivalue::ComplexHolder>(complex_obj);
+      }
     case TypeKind::IntType:
     // TODO(xintchen): Handling LayoutType and ScalarTypeType correctly.
     case TypeKind::LayoutType:
@@ -148,15 +157,6 @@ IValue toIValue(py::handle obj, const TypePtr& type, c10::optional<int32_t> N) {
         const auto& attrType = classType->getAttribute(slot);
         const auto& attrName = classType->getAttributeName(slot);
 
-        if (!py::hasattr(obj, attrName.c_str())) {
-          throw py::cast_error(c10::str(
-              "Tried to cast object to type ",
-              type->repr_str(),
-              " but object",
-              " was missing attribute ",
-              attrName));
-        }
-
         const auto& contained = py::getattr(obj, attrName.c_str());
         userObj->setSlot(slot, toIValue(contained, attrType));
       }
@@ -187,7 +187,7 @@ IValue toIValue(py::handle obj, const TypePtr& type, c10::optional<int32_t> N) {
               "a TorchScript compatible type, did you forget to",
               "turn it into a user defined TorchScript class?"));
         }
-        res = toIValue(obj, classType);
+        res = toIValue(std::move(obj), classType);
       }
       // check if the classType conform with the interface or not
       std::stringstream why_not;
@@ -235,7 +235,8 @@ IValue toIValue(py::handle obj, const TypePtr& type, c10::optional<int32_t> N) {
       return c10::ivalue::ConcretePyObjectHolder::create(obj);
     }
     case TypeKind::CapsuleType: {
-      return IValue::make_capsule(py::cast<c10::Capsule>(obj).obj_ptr);
+      return IValue::make_capsule(
+          py::cast<c10::intrusive_ptr<CustomClassHolder>>(obj));
     }
     case TypeKind::FutureType: {
       return obj.cast<std::shared_ptr<PythonFutureWrapper>>()->fut;
@@ -244,7 +245,6 @@ IValue toIValue(py::handle obj, const TypePtr& type, c10::optional<int32_t> N) {
       return toTypeInferredIValue(obj);
     case TypeKind::FunctionType:
     case TypeKind::GeneratorType:
-    case TypeKind::StorageType:
     case TypeKind::QuantizerType:
     case TypeKind::VarType:
     case TypeKind::QSchemeType:
