@@ -13,6 +13,7 @@
 
 #include <ATen/Tensor.h>
 #include <ATen/cpu/FlushDenormal.h>
+#include <ATen/detail/AllocIntercept.h>
 
 #include <TH/TH.h> // for USE_LAPACK
 
@@ -282,4 +283,13 @@ void Context::unsetDefaultMobileCPUAllocator() {
   c10::SetCPUAllocator(prev_allocator_ptr_ , /*priority*/ 100);
   prev_allocator_ptr_ = nullptr;
 }
+
+void Context::suspendAllocators() {
+  detail::suspendAllocators();
+}
+
+void Context::restoreAllocators() {
+  detail::restoreAllocators();
+}
+
 } // namespace at

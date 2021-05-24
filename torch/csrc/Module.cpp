@@ -654,6 +654,18 @@ static PyObject * THPModule_are_vmap_fallback_warnings_enabled(PyObject* _unused
   END_HANDLE_TH_ERRORS
 }
 
+PyObject *THPModule_suspend_allocators(PyObject *_unused, PyObject *noargs)
+{
+  at::globalContext().suspendAllocators();
+  Py_RETURN_NONE;
+}
+
+PyObject *THPModule_restore_allocators(PyObject *_unused, PyObject *noargs)
+{
+  at::globalContext().restoreAllocators();
+  Py_RETURN_NONE;
+}
+
 //NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, cppcoreguidelines-avoid-non-const-global-variables, modernize-avoid-c-arrays)
 static PyMethodDef TorchMethods[] = {
   {"_initExtension",  THPModule_initExtension,   METH_O,       nullptr},
@@ -698,6 +710,8 @@ static PyMethodDef TorchMethods[] = {
   {"_vmapmode_decrement_nesting", THPModule_vmapmode_decrement_nesting, METH_NOARGS, nullptr},
   {"_debug_only_display_vmap_fallback_warnings", THPModule_set_display_vmap_fallback_warnings_mode, METH_O, nullptr},
   {"_debug_only_are_vmap_fallback_warnings_enabled", THPModule_are_vmap_fallback_warnings_enabled, METH_NOARGS, nullptr},
+  {"_suspend_allocators", THPModule_suspend_allocators, METH_NOARGS, nullptr},
+  {"_restore_allocators", THPModule_restore_allocators, METH_NOARGS, nullptr},
   {"_to_dlpack",      THPModule_toDLPack,          METH_O,       nullptr},
   {"_from_dlpack",    THPModule_fromDLPack,        METH_O,       nullptr},
   {"set_flush_denormal", THPModule_setFlushDenormal, METH_O,     nullptr},
